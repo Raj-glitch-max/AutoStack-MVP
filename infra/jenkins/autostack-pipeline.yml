@@ -1,0 +1,37 @@
+pipeline:
+  agent:
+    docker:
+      image: node:18
+  environment:
+    BACKEND_URL: "http://autostack-backend:8000"
+    FRONTEND_URL: "http://autostack-frontend:80"
+  options:
+    - timestamps
+  stages:
+    - name: Checkout
+      steps:
+        - git: "https://github.com/Raj-glitch-max/AutoStack-MVP.git"
+    - name: Build backend
+      steps:
+        - run: |
+            cd autostack-backend
+            pip install -r requirements.txt
+    - name: Build frontend
+      steps:
+        - run: |
+            cd autostack-frontend
+            npm install
+            npm run build
+    - name: Build Docker images
+      steps:
+        - run: |
+            docker build -t autostack-backend:latest ./autostack-backend
+            docker build -t autostack-frontend:latest ./autostack-frontend
+    - name: Deploy to Kubernetes
+      steps:
+        - run: |
+            kubectl apply -f infra/k8s/backend-deployment.yaml
+            kubectl apply -f infra/k8s/frontend-deployment.yaml
+  post:
+    always:
+      - run: echo "Pipeline finished"

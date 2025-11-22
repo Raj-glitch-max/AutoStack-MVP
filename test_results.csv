@@ -1,0 +1,7 @@
+Test Type,Test Suite/File,Test Case,Status,Details
+Backend Unit,tests/test_smoke.py,test_auth_signup_and_login,FAILED,Auth flow failed
+Backend Unit,tests/test_smoke.py,test_deployment_creation_records_stage,FAILED,AssertionError: 400 == 200
+Backend Unit,tests/test_lambda_detection.py,all tests,PASSED,7 tests passed
+Frontend Lint,src,eslint,FAILED,Linting errors detected
+Security,bandit,N/A,SKIPPED,Tool not installed
+Static Analysis,mypy,N/A,SKIPPED,Tool not installed

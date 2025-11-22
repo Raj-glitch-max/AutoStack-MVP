@@ -1,0 +1,11 @@
+{
+    "framework": "vite",
+    "buildCommand": "cd autostack-frontend && npm install && npm run build",
+    "outputDirectory": "autostack-frontend/dist",
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
