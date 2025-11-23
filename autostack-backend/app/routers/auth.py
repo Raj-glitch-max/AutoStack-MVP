@@ -439,6 +439,10 @@ async def google_auth_start() -> RedirectResponse:
         "state": state,
     }
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    logger.info("Initiating Google Auth with params: client_id=%s..., redirect_uri=%s", 
+                settings.google_client_id[:5] if settings.google_client_id else "None", 
+                settings.google_callback_url)
+    logger.info("Full Google Auth URL: %s", url)
     return RedirectResponse(url)
 
 
