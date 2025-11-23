@@ -16,6 +16,10 @@ services:
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
     dockerContext: ./autostack-backend
     dockerfilePath: ./Dockerfile
+    instanceType: free
+    numInstances: 1
+    healthCheckPath: /health
+    autoDeploy: true
     envVars:
       # Core
       - key: DATABASE_URL
@@ -72,11 +76,3 @@ services:
         value: "false"
       - key: EMAIL_FROM
         value: "autostack@example.com"
-    
-    # Health check
-    healthCheckPath: /health
-    autoDeploy: true
-    
-    # Resource limits (free tier)
-    instanceSize: free
-    numInstances: 1
