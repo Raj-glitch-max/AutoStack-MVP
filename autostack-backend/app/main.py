@@ -94,6 +94,11 @@ app.include_router(billing_router)
 app.include_router(projects_router)
 
 
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"service": "Autostack API", "status": "running", "docs": "/docs"}
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
