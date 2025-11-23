@@ -33,9 +33,9 @@ services:
 
       # Frontend URLs
       - key: FRONTEND_URL
-        value: "https://autostack-mvp.vercel.app"
+        value: "https://auto-stack-mvp-8nl1.vercel.app"
       - key: FRONTEND_ADDITIONAL_ORIGINS
-        value: "http://localhost:3000,http://localhost:5173,https://autostack-mvp.vercel.app"
+        value: "http://localhost:3000,http://localhost:5173,https://auto-stack-mvp-8nl1.vercel.app"
 
       # GitHub OAuth — set values in dashboard
       - key: GITHUB_CLIENT_ID
