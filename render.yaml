@@ -7,17 +7,13 @@ databases:
 services:
   - type: web
     name: autostack-backend
-    env: docker
-    region: singapore  # Or choose another region: oregon, ohio, etc.
+    env: python
+    region: singapore
     plan: free
     buildCommand: |
       pip install -r autostack-backend/requirements.txt
       alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
-    dockerContext: ./autostack-backend
-    dockerfilePath: ./Dockerfile
-    instanceType: free
-    numInstances: 1
     healthCheckPath: /health
     autoDeploy: true
     envVars:
@@ -32,38 +28,38 @@ services:
         value: "30"
       - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
         value: "7"
-      
-      # Frontend URLs (update with your Vercel URL)
+
+      # Frontend URLs
       - key: FRONTEND_URL
         value: "https://your-vercel-app.vercel.app"
       - key: FRONTEND_ADDITIONAL_ORIGINS
         value: "http://localhost:3000,http://localhost:5173"
-      
-      # GitHub OAuth (update with your GitHub OAuth app credentials)
+
+      # GitHub OAuth — set values in dashboard
       - key: GITHUB_CLIENT_ID
-        sync: false  # Set this in Render dashboard
+        sync: false
       - key: GITHUB_CLIENT_SECRET
-        sync: false  # Set this in Render dashboard
+        sync: false
       - key: GITHUB_CALLBACK_URL
         value: "https://${SERVICE_NAME}.onrender.com/auth/github/callback"
       - key: GITHUB_WEBHOOK_SECRET
         generateValue: true
-      
-      # Google OAuth (update with your Google OAuth credentials)
+
+      # Google OAuth
       - key: GOOGLE_CLIENT_ID
-        sync: false  # Set this in Render dashboard
+        sync: false
       - key: GOOGLE_CLIENT_SECRET
-        sync: false  # Set this in Render dashboard
+        sync: false
       - key: GOOGLE_CALLBACK_URL
         value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
-      
+
       # Deployment settings
       - key: AUTOSTACK_DEPLOY_DIR
         value: "/tmp/deployments"
       - key: DOCKER_ENABLE
-        value: "false"  # Disable Docker-in-Docker for now
-      
-      # Email settings (optional, for password reset)
+        value: "false"  # Docker disabled for free plan
+
+      # Email settings (optional)
       - key: SMTP_HOST
         value: ""
       - key: SMTP_PORT
