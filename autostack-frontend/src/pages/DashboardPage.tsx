@@ -3,11 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Rocket, 
-  GitBranch, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Rocket,
+  GitBranch,
+  CheckCircle2,
+  XCircle,
   Clock,
   Github,
   TrendingUp,
@@ -52,19 +52,19 @@ const formatTimeAgo = (timestamp: string) => {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
-  
+
   if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-  
+
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  
+
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
 };
 
 export default function DashboardPage() {
-  const { authorizedRequest, user, logout } = useAuth();
+  const { authorizedRequest, user, logout, token } = useAuth();
   const [githubProfile, setGithubProfile] = useState<{
     login: string;
     avatar_url: string;
@@ -284,9 +284,8 @@ export default function DashboardPage() {
     {
       label: "Success Rate",
       value: `${totals.success_rate ?? 0}%`,
-      change: `${(totals.monthly_success_change ?? 0) > 0 ? "+" : ""}${
-        totals.monthly_success_change ?? 0
-      }% from last month`,
+      change: `${(totals.monthly_success_change ?? 0) > 0 ? "+" : ""}${totals.monthly_success_change ?? 0
+        }% from last month`,
       icon: CheckCircle2,
       gradient: "gradient-success",
     },
@@ -311,7 +310,7 @@ export default function DashboardPage() {
             Welcome back! Here's what's happening with your deployments.
           </p>
         </div>
-        
+
         {githubError && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
@@ -329,7 +328,8 @@ export default function DashboardPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  window.location.href = `${API_BASE_URL}/auth/github`;
+                  const url = `${API_BASE_URL}/auth/github` + (token ? `?token=${token}` : "");
+                  window.location.href = url;
                 }}
               >
                 <Github className="mr-2 h-4 w-4" />

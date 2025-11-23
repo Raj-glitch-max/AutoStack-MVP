@@ -140,188 +140,39 @@ def _oauth_error_redirect(provider: str, message: str) -> RedirectResponse:
     return RedirectResponse(f"{_frontend_url('/auth/error')}?provider={provider}&message={msg}")
 
 
-def _generate_oauth_state(provider: str) -> str:
+def _generate_oauth_state(provider: str, user_id: str | None = None) -> str:
     payload = {
         "provider": provider,
         "exp": datetime.utcnow().timestamp() + settings.oauth_state_ttl_seconds,
     }
+    if user_id:
+        payload["user_id"] = user_id
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 
-def _validate_oauth_state(state: str | None, expected_provider: str) -> bool:
+def _validate_oauth_state(state: str | None, expected_provider: str) -> dict | None:
     if not state:
-        return False
+        return None
     try:
         payload = jwt.decode(state, settings.secret_key, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
-        return False
-    return payload.get("provider") == expected_provider
-
-
-def _hash_reset_token(token: str) -> str:
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-
-@router.post("/signup", response_model=AuthResponse)
-async def signup(payload: SignupRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
-    _validate_password_strength(payload.password)
-
-    result = await db.execute(select(User).where(User.email == payload.email))
-    existing = result.scalar_one_or_none()
-    if existing:
-        raise ApiError("VALIDATION_ERROR", "Email already in use", 409)
-
-    user = User(name=payload.name, email=payload.email, password_hash=hash_password(payload.password))
-    db.add(user)
-    await db.flush()
-
-    access = create_access_token(user)
-    refresh = await _create_session(db, user)
-    await db.commit()
-
-    return AuthResponse(access_token=access, refresh_token=refresh, user=_user_to_info(user))
-
-
-@router.post("/login", response_model=AuthResponse)
-async def login(payload: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)) -> AuthResponse:
-    _check_login_rate_limit(request, payload.email)
-
-    result = await db.execute(select(User).where(User.email == payload.email))
-    user = result.scalar_one_or_none()
-    client_host = request.client.host if request.client else "unknown"
-    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash):
-        logger.warning("Login failed for email=%s from ip=%s", payload.email, client_host)
-        _register_login_failure(request, payload.email)
-        raise ApiError("UNAUTHORIZED", "Invalid email or password", 401)
-
-    access = create_access_token(user)
-    refresh = await _create_session(db, user)
-    _clear_login_failures(request, payload.email)
-    await db.commit()
-
-    logger.info("Login successful for user_id=%s from ip=%s", user.id, client_host)
-
-    return AuthResponse(access_token=access, refresh_token=refresh, user=_user_to_info(user))
-
-
-@router.post("/refresh", response_model=AuthResponse)
-async def refresh_token(payload: RefreshRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
-    result = await db.execute(select(Session).where(Session.token == payload.refresh_token))
-    session_obj = result.scalar_one_or_none()
-    if not session_obj or session_obj.expires_at < datetime.utcnow():
-        raise ApiError("UNAUTHORIZED", "Invalid or expired refresh token", 401)
-
-    user = await db.get(User, session_obj.user_id)
-    if not user:
-        raise ApiError("UNAUTHORIZED", "User not found", 401)
-
-    access = create_access_token(user)
-
-    return AuthResponse(access_token=access, refresh_token=session_obj.token, user=_user_to_info(user))
-
-
-@router.post("/logout")
-async def logout(payload: LogoutRequest, db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    result = await db.execute(select(Session).where(Session.token == payload.refresh_token))
-    session_obj = result.scalar_one_or_none()
-    if session_obj:
-        await db.delete(session_obj)
-        await db.commit()
-    return JSONResponse({"success": True})
-
-
-@router.get("/session", response_model=SessionResponse)
-async def get_session(current_user: User = Depends(get_current_user)) -> SessionResponse:
-    return SessionResponse(user=_user_to_info(current_user), authenticated=True)
-
-
-@router.post("/forgot-password", response_model=MessageResponse)
-async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)) -> MessageResponse:
-    result = await db.execute(select(User).where(User.email == payload.email))
-    user = result.scalar_one_or_none()
-    if not user:
-        return MessageResponse()
-
-    await db.execute(
-        update(PasswordResetToken)
-        .where(
-            PasswordResetToken.user_id == user.id,
-            PasswordResetToken.used_at.is_(None),
-        )
-        .values(used_at=datetime.utcnow())
-    )
-
-    token = secrets.token_urlsafe(48)
-    token_hash = _hash_reset_token(token)
-    expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
-    reset_token = PasswordResetToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
-    db.add(reset_token)
-    await db.flush()
-
-    reset_url = f"{str(settings.frontend_url).rstrip('/')}/reset-password?token={token}"
-    body = "\n".join(
-        [
-            f"Hi {user.name},",
-            "",
-            "We received a request to reset your Autostack password.",
-            "If this was you, click the link below to set a new password:",
-            reset_url,
-            "",
-            "If you did not request this, you can safely ignore this email.",
-        ]
-    )
-    send_email("Reset your Autostack password", body, user.email)
-    await db.commit()
-
-    return MessageResponse()
-
-
-@router.post("/reset-password", response_model=MessageResponse)
-async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> MessageResponse:
-    token_hash = _hash_reset_token(payload.token)
-    result = await db.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash, PasswordResetToken.used_at.is_(None)
-        )
-    )
-    reset_token = result.scalar_one_or_none()
-    if not reset_token or reset_token.expires_at < datetime.utcnow():
-        raise ApiError("UNAUTHORIZED", "Invalid or expired reset token", 401)
-
-    user = await db.get(User, reset_token.user_id)
-    if not user:
-        raise ApiError("UNAUTHORIZED", "User not found", 401)
-
-    # Enforce password strength and prevent reusing the existing password when present.
-    _validate_password_strength(payload.password)
-    if user.password_hash and verify_password(payload.password, user.password_hash):
-        raise ApiError("VALIDATION_ERROR", "New password must be different from the old password", 400)
-
-    user.password_hash = hash_password(payload.password)
-    reset_token.used_at = datetime.utcnow()
-
-    await db.flush()
-    await db.commit()
-
-    return MessageResponse()
-
-
-# OAuth helpers
-
-def _github_authorize_url(state: str) -> str:
-    params = {
-        "client_id": settings.github_client_id,
-        "redirect_uri": settings.github_callback_url,
-        "scope": "repo user:email",
-        "state": state,
-        "allow_signup": "false",
-    }
-    return f"https://github.com/login/oauth/authorize?{urlencode(params)}"
+        return None
+    if payload.get("provider") != expected_provider:
+        return None
+    return payload
 
 
 @oauth_router.get("/auth/github")
-async def github_auth_start() -> RedirectResponse:
-    state = _generate_oauth_state("github")
+async def github_auth_start(token: str | None = None) -> RedirectResponse:
+    user_id = None
+    if token:
+        try:
+            payload = decode_token(token)
+            user_id = payload.get("userId")
+        except Exception:
+            pass  # Invalid token, treat as normal login
+            
+    state = _generate_oauth_state("github", user_id)
     return RedirectResponse(_github_authorize_url(state))
 
 
@@ -331,8 +182,11 @@ async def github_auth_callback(
     state: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
-    if not _validate_oauth_state(state, "github"):
+    state_payload = _validate_oauth_state(state, "github")
+    if not state_payload:
         return _oauth_error_redirect("github", "Invalid or expired OAuth state")
+
+    linking_user_id = state_payload.get("user_id")
 
     try:
         async with httpx.AsyncClient() as client:
@@ -384,19 +238,44 @@ async def github_auth_callback(
         logger.exception("GitHub OAuth callback failed: %s", exc)
         return _oauth_error_redirect("github", "GitHub authentication failed")
 
+    # Check if this GitHub account is already linked to a user
     result = await db.execute(select(User).where(User.github_id == github_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        result = await db.execute(select(User).where(User.email == primary_email))
-        user = result.scalar_one_or_none()
-    if not user:
-        user = User(name=name, email=primary_email, github_id=github_id, avatar_url=avatar_url, email_verified=True)
-        db.add(user)
-        await db.flush()
-    else:
-        user.github_id = github_id
-        user.avatar_url = avatar_url or user.avatar_url
+    existing_user = result.scalar_one_or_none()
 
+    if linking_user_id:
+        # LINKING FLOW
+        # Verify the user requesting the link exists
+        target_user = await db.get(User, uuid.UUID(linking_user_id))
+        if not target_user:
+             return _oauth_error_redirect("github", "User session not found")
+
+        if existing_user and existing_user.id != target_user.id:
+            # GitHub account is already linked to SOMEONE ELSE
+            return _oauth_error_redirect("github", "This GitHub account is already connected to another user.")
+        
+        # Link the account
+        target_user.github_id = github_id
+        if not target_user.avatar_url:
+            target_user.avatar_url = avatar_url
+        
+        user = target_user
+    else:
+        # LOGIN FLOW
+        user = existing_user
+        if not user:
+            result = await db.execute(select(User).where(User.email == primary_email))
+            user = result.scalar_one_or_none()
+        
+        if not user:
+            user = User(name=name, email=primary_email, github_id=github_id, avatar_url=avatar_url, email_verified=True)
+            db.add(user)
+            await db.flush()
+        else:
+            user.github_id = github_id
+            if not user.avatar_url:
+                user.avatar_url = avatar_url
+
+    # Update or create connection record
     result = await db.execute(select(GithubConnection).where(GithubConnection.user_id == user.id))
     conn = result.scalar_one_or_none()
     if not conn:

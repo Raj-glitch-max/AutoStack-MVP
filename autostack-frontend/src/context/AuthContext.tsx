@@ -19,6 +19,7 @@ type AuthUser = {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
@@ -134,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const refreshed = await refreshTokens();
         if (!refreshed) {
           throw new Error("Session expired");
-          }
+        }
         response = await createRequest(refreshed.accessToken);
       }
       return response;
@@ -246,6 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       user,
+      token: tokens?.accessToken ?? null,
       loading,
       login,
       signup,
@@ -253,7 +255,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       completeOAuth,
       authorizedRequest,
     }),
-    [authorizedRequest, completeOAuth, loading, login, logout, signup, user]
+    [authorizedRequest, completeOAuth, loading, login, logout, signup, user, tokens]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -266,4 +268,3 @@ export const useAuthContext = (): AuthContextValue => {
   }
   return ctx;
 };
-

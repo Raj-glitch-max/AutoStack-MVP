@@ -25,7 +25,9 @@ if settings.database_url.startswith("sqlite+"):
     }
     engine_kwargs["poolclass"] = NullPool
 
-    # Enable WAL mode for better concurrency
+engine = create_async_engine(settings.database_url, **engine_kwargs)
+
+if settings.database_url.startswith("sqlite+"):
     from sqlalchemy import event
     
     @event.listens_for(engine.sync_engine, "connect")
@@ -34,8 +36,6 @@ if settings.database_url.startswith("sqlite+"):
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.close()
-
-engine = create_async_engine(settings.database_url, **engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker[
     AsyncSession

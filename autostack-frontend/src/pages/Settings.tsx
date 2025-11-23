@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import {
   User,
   Bell,
   Shield,
@@ -23,7 +23,7 @@ import { API_BASE_URL } from "@/config";
 import { toast } from "@/hooks/use-toast";
 
 export default function SettingsPage() {
-  const { user, authorizedRequest } = useAuth();
+  const { user, authorizedRequest, token } = useAuth();
   const [isDark, setIsDark] = useState(false);
 
   const toggleTheme = () => {
@@ -60,7 +60,8 @@ export default function SettingsPage() {
   });
 
   const handleGithubConnect = () => {
-    window.location.href = `${API_BASE_URL}/auth/github`;
+    const url = `${API_BASE_URL}/auth/github` + (token ? `?token=${token}` : "");
+    window.location.href = url;
   };
 
   return (

@@ -15,9 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  CheckCircle2, 
-  Github, 
+import {
+  CheckCircle2,
+  Github,
   Rocket,
   Settings as SettingsIcon,
   ChevronRight
@@ -51,7 +51,7 @@ const steps = [
 
 export default function DeployPage() {
   const navigate = useNavigate();
-  const { authorizedRequest } = useAuth();
+  const { authorizedRequest, token } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [deploying, setDeploying] = useState(false);
   const [formData, setFormData] = useState({
@@ -145,7 +145,8 @@ export default function DeployPage() {
   const githubAvatarUrl = githubStatus?.avatarUrl ?? undefined;
 
   const handleGithubConnect = () => {
-    window.location.href = `${API_BASE_URL}/auth/github`;
+    const url = `${API_BASE_URL}/auth/github` + (token ? `?token=${token}` : "");
+    window.location.href = url;
   };
 
   const handleGithubDisconnect = async () => {
@@ -474,7 +475,7 @@ export default function DeployPage() {
                   <Input
                     id="buildCommand"
                     value={formData.buildCommand}
-                    onChange={(e) => setFormData({...formData, buildCommand: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, buildCommand: e.target.value })}
                     placeholder="npm run build"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -487,7 +488,7 @@ export default function DeployPage() {
                   <Input
                     id="outputDir"
                     value={formData.outputDir}
-                    onChange={(e) => setFormData({...formData, outputDir: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, outputDir: e.target.value })}
                     placeholder="dist"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -502,7 +503,7 @@ export default function DeployPage() {
                   <Textarea
                     id="envVars"
                     value={formData.envVars}
-                    onChange={(e) => setFormData({...formData, envVars: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, envVars: e.target.value })}
                     placeholder="KEY=value&#10;API_KEY=your_api_key"
                     rows={4}
                   />
