@@ -11,8 +11,10 @@ services:
     region: singapore
     plan: free
     buildCommand: |
-      pip install -r autostack-backend/requirements.txt
-      alembic upgrade head
+      cd autostack-backend
+      pip install -r requirements.txt
+      # Skip migrations for now to get the app running
+      # alembic upgrade head
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /health
     autoDeploy: true
