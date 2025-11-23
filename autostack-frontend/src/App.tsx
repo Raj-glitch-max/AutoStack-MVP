@@ -28,6 +28,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const StatusPage = lazy(() => import("./pages/StatusPage"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const AuthError = lazy(() => import("./pages/AuthError"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -107,6 +108,7 @@ const App = () => (
               }
             />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/error" element={<AuthError />} />
             <Route path="/pricing" element={<PricingComingSoon />} />
             <Route path="/docs" element={<DocsComingSoon />} />
             <Route path="/templates" element={<TemplatesComingSoon />} />
