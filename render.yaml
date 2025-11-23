@@ -37,7 +37,7 @@ services:
       - key: FRONTEND_ADDITIONAL_ORIGINS
         value: "http://localhost:3000,http://localhost:5173,https://autostack-frontend.onrender.com"
 
-      # GitHub OAuth — set values in dashboard
+      # GitHub OAuth — configure on dashboard
       - key: GITHUB_CLIENT_ID
         sync: false
       - key: GITHUB_CLIENT_SECRET
@@ -59,9 +59,9 @@ services:
       - key: AUTOSTACK_DEPLOY_DIR
         value: "/tmp/deployments"
       - key: DOCKER_ENABLE
-        value: "false"  # Docker disabled for free plan
+        value: "false"
 
-      # Email settings (optional)
+      # Email settings
       - key: SMTP_HOST
         value: ""
       - key: SMTP_PORT
@@ -75,7 +75,7 @@ services:
       - key: EMAIL_FROM
         value: "autostack@example.com"
 
-  - type: pstatic
+  - type: static
     name: autostack-frontend
     plan: free
     buildCommand: |
