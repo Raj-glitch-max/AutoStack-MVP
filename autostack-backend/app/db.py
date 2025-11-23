@@ -19,8 +19,21 @@ engine_kwargs: dict = {
 }
 
 if settings.database_url.startswith("sqlite+"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
+    engine_kwargs["connect_args"] = {
+        "check_same_thread": False,
+        "timeout": 30,  # Increase timeout to wait for locks
+    }
     engine_kwargs["poolclass"] = NullPool
+
+    # Enable WAL mode for better concurrency
+    from sqlalchemy import event
+    
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.close()
 
 engine = create_async_engine(settings.database_url, **engine_kwargs)
 

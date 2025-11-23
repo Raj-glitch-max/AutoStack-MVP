@@ -302,11 +302,16 @@ async def _record_cancelled(
     await set_stage_status(session, deployment.id, stage_key, "cancelled")
 
 
-async def _append_log(_: AsyncSession, deployment_id: uuid.UUID, message: str, level: str = "info") -> None:
-    async with AsyncSessionLocal() as log_session:
+async def _append_log(session: AsyncSession | None, deployment_id: uuid.UUID, message: str, level: str = "info") -> None:
+    if session:
         log = DeploymentLog(deployment_id=deployment_id, message=message, log_level=level)
-        log_session.add(log)
-        await log_session.commit()
+        session.add(log)
+        await session.commit()
+    else:
+        async with AsyncSessionLocal() as log_session:
+            log = DeploymentLog(deployment_id=deployment_id, message=message, log_level=level)
+            log_session.add(log)
+            await log_session.commit()
     await ws_manager.broadcast_log(deployment_id, message)
 
 
