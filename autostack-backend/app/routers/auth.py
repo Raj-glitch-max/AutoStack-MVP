@@ -390,18 +390,6 @@ async def github_auth_callback(
         result = await db.execute(select(User).where(User.email == primary_email))
         user = result.scalar_one_or_none()
     if not user:
-        user = User(name=name, email=primary_email, github_id=github_id, avatar_url=avatar_url, email_verified=True)
-        db.add(user)
-        await db.flush()
-    else:
-        user.github_id = github_id
-        user.avatar_url = avatar_url or user.avatar_url
-
-    result = await db.execute(select(GithubConnection).where(GithubConnection.user_id == user.id))
-    conn = result.scalar_one_or_none()
-    if not conn:
-        conn = GithubConnection(
-            user_id=user.id,
             github_username=login,
             github_access_token=access_token,
             scope=scope,
