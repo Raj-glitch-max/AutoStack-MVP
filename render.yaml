@@ -75,9 +75,8 @@ services:
       - key: EMAIL_FROM
         value: "autostack@example.com"
 
-  - type: web
+  - type: static
     name: autostack-frontend
-    env: static
     plan: free
     buildCommand: |
       cd autostack-frontend
