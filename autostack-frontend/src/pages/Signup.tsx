@@ -23,6 +23,35 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation
+    if (formData.password.length < 10) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 10 characters long",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.email.includes('@')) {
+      toast({
+        title: "Invalid email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (formData.name.trim().length < 2) {
+      toast({
+        title: "Name too short",
+        description: "Please enter your full name",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await signup(formData.name, formData.email, formData.password);
