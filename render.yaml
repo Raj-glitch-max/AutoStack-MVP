@@ -2,19 +2,24 @@ databases:
   - name: autostack-db
     databaseName: autostack
     user: autostack
+    plan: free
 
 services:
   - type: web
     name: autostack-backend
-    runtime: python
+    env: python
     region: singapore
+    plan: free
     buildCommand: |
       cd autostack-backend
       pip install -r requirements.txt
+      # Skip migrations for now to get the app running
+      # alembic upgrade head
     startCommand: cd autostack-backend && uvicorn app.main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      # Core
       - key: DATABASE_URL
         fromDatabase:
           name: autostack-db
@@ -25,24 +30,47 @@ services:
         value: "30"
       - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
         value: "7"
-      - key: FRONTEND_URL
-        value: "https://autostack-frontend.onrender.com"
-      - key: FRONTEND_ADDITIONAL_ORIGINS
-        value: "http://localhost:3000,http://localhost:5173,https://autostack-frontend.onrender.com"
 
-  - type: web
-    name: autostack-frontend
-    runtime: static
-    buildCommand: |
-      cd autostack-frontend
-      npm install
-      npm run build
-    staticPublishPath: autostack-frontend/dist
-    pullRequestPreviewsEnabled: true
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_BASE_URL
-        value: "https://autostack-backend.onrender.com"
+      # Frontend URLs
+      - key: FRONTEND_URL
+        value: "https://autostack-mvp.vercel.app"
+      - key: FRONTEND_ADDITIONAL_ORIGINS
+        value: "http://localhost:3000,http://localhost:5173,https://autostack-mvp.vercel.app"
+
+      # GitHub OAuth — set values in dashboard
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        value: "https://${SERVICE_NAME}.onrender.com/auth/github/callback"
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
+
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
+
+      # Deployment settings
+      - key: AUTOSTACK_DEPLOY_DIR
+        value: "/tmp/deployments"
+      - key: DOCKER_ENABLE
+        value: "false"  # Docker disabled for free plan
+
+      # Email settings (optional)
+      - key: SMTP_HOST
+        value: ""
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        value: ""
+      - key: SMTP_PASSWORD
+        value: ""
+      - key: SMTP_USE_TLS
+        value: "false"
+      - key: EMAIL_FROM
+        value: "autostack@example.com"
