@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List
 
-from pydantic import AnyUrl, EmailStr, Field, computed_field
+from pydantic import AnyUrl, EmailStr, Field, computed_field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -70,6 +70,15 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            value = value.replace("postgres://", "postgresql://", 1)
+        if value.startswith("postgresql://") and "+" not in value.split("://", 1)[0]:
+            value = value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return value
 
 
 @lru_cache(maxsize=1)
