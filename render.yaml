@@ -7,13 +7,13 @@ databases:
 services:
   - type: web
     name: autostack-backend
-    env: python
+    runtime: python
     region: singapore
     plan: free
     buildCommand: |
       cd autostack-backend
       pip install -r requirements.txt
-      # alembic upgrade head  # Enable later once DB stable
+      # alembic upgrade head  # Enable later
     startCommand: cd autostack-backend && uvicorn app.main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /health
     autoDeploy: true
@@ -24,6 +24,8 @@ services:
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
+
+      # JWT
       - key: JWT_ACCESS_TOKEN_EXPIRES_MINUTES
         value: "30"
       - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
@@ -53,13 +55,13 @@ services:
       - key: GOOGLE_CALLBACK_URL
         value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
 
-      # Deployment
+      # Deployment agent
       - key: AUTOSTACK_DEPLOY_DIR
         value: "/tmp/deployments"
       - key: DOCKER_ENABLE
         value: "false"
 
-      # Email (Optional)
+      # Email (optional)
       - key: SMTP_HOST
         value: ""
       - key: SMTP_PORT
@@ -73,15 +75,15 @@ services:
       - key: EMAIL_FROM
         value: "autostack@example.com"
 
-  - type: static_site
+  - type: web
     name: autostack-frontend
+    runtime: static
     plan: free
     buildCommand: |
       cd autostack-frontend
       npm install
       npm run build
     staticPublishPath: autostack-frontend/dist
-
     pullRequestPreviewsEnabled: true
 
     headers:
