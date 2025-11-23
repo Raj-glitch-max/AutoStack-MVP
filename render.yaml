@@ -78,7 +78,6 @@ services:
   - type: web
     name: autostack-frontend
     env: static
-    region: singapore
     plan: free
     buildCommand: |
       cd autostack-frontend
