@@ -1,5 +1,6 @@
 import asyncio
 import os
+import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -31,6 +32,8 @@ from .routers import auth as auth_module
 from .services.monitoring import monitoring_service
 
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Autostack API", version="0.1.0")
 
 
@@ -52,16 +55,14 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    await init_db()
-
-    # Ensure artifacts directory exists
-    import os
-
-    os.makedirs(settings.autostack_deploy_dir, exist_ok=True)
+    try:
+        await init_db()
+    except Exception as exc:  # pragma: no cover - defensive startup on Render
+        logger.exception("Database initialization failed during startup; continuing without DB: %s", exc)
 
     # Start background monitoring and health-check loop
     asyncio.create_task(monitoring_service.start_monitoring(interval=60))
-    
+
     # Start container log streaming for Docker deployments
     if settings.docker_enable:
         from .services.container_log_streamer import start_log_streamer
