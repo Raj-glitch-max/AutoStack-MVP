@@ -6,18 +6,17 @@ databases:
 
 services:
   - type: web
-    runtime: python
     name: autostack-backend
+    env: python
     region: singapore
     plan: free
     buildCommand: |
       cd autostack-backend
       pip install -r requirements.txt
-      # Skip migrations for now to get the app running
-      # alembic upgrade head
+      # alembic upgrade head  # Enable later once DB stable
     startCommand: cd autostack-backend && uvicorn app.main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /health
-    autoDeployTrigger: commit
+    autoDeploy: true
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -29,10 +28,14 @@ services:
         value: "30"
       - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
         value: "7"
+
+      # CORS
       - key: FRONTEND_URL
         value: "https://autostack-frontend.onrender.com"
       - key: FRONTEND_ADDITIONAL_ORIGINS
         value: "http://localhost:3000,http://localhost:5173,https://autostack-frontend.onrender.com"
+
+      # GitHub OAuth
       - key: GITHUB_CLIENT_ID
         sync: false
       - key: GITHUB_CLIENT_SECRET
@@ -41,16 +44,22 @@ services:
         value: "https://${SERVICE_NAME}.onrender.com/auth/github/callback"
       - key: GITHUB_WEBHOOK_SECRET
         generateValue: true
+
+      # Google OAuth
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
         value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
+
+      # Deployment
       - key: AUTOSTACK_DEPLOY_DIR
         value: "/tmp/deployments"
       - key: DOCKER_ENABLE
         value: "false"
+
+      # Email (Optional)
       - key: SMTP_HOST
         value: ""
       - key: SMTP_PORT
@@ -64,8 +73,7 @@ services:
       - key: EMAIL_FROM
         value: "autostack@example.com"
 
-  - type: web
-    runtime: static
+  - type: static_site
     name: autostack-frontend
     plan: free
     buildCommand: |
@@ -73,7 +81,9 @@ services:
       npm install
       npm run build
     staticPublishPath: autostack-frontend/dist
+
     pullRequestPreviewsEnabled: true
+
     headers:
       - path: /*
         name: X-Frame-Options
@@ -84,10 +94,12 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache
+
     routes:
       - type: rewrite
         source: /*
         destination: /index.html
+
     envVars:
       - key: VITE_API_BASE_URL
-        value: "https://autostack-mvp.onrender.com"
+        value: "https://autostack-backend.onrender.com"
