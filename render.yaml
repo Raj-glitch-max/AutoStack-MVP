@@ -1,0 +1,82 @@
+databases:
+  - name: autostack-db
+    databaseName: autostack
+    user: autostack
+    plan: free
+
+services:
+  - type: web
+    name: autostack-backend
+    env: docker
+    region: singapore  # Or choose another region: oregon, ohio, etc.
+    plan: free
+    buildCommand: |
+      pip install -r autostack-backend/requirements.txt
+      alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    dockerContext: ./autostack-backend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      # Core
+      - key: DATABASE_URL
+        fromDatabase:
+          name: autostack-db
+          property:connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ACCESS_TOKEN_EXPIRES_MINUTES
+        value: "30"
+      - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
+        value: "7"
+      
+      # Frontend URLs (update with your Vercel URL)
+      - key: FRONTEND_URL
+        value: "https://your-vercel-app.vercel.app"
+      - key: FRONTEND_ADDITIONAL_ORIGINS
+        value: "http://localhost:3000,http://localhost:5173"
+      
+      # GitHub OAuth (update with your GitHub OAuth app credentials)
+      - key: GITHUB_CLIENT_ID
+        sync: false  # Set this in Render dashboard
+      - key: GITHUB_CLIENT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: GITHUB_CALLBACK_URL
+        value: "https://${SERVICE_NAME}.onrender.com/auth/github/callback"
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
+      
+      # Google OAuth (update with your Google OAuth credentials)
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Set this in Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: GOOGLE_CALLBACK_URL
+        value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
+      
+      # Deployment settings
+      - key: AUTOSTACK_DEPLOY_DIR
+        value: "/tmp/deployments"
+      - key: DOCKER_ENABLE
+        value: "false"  # Disable Docker-in-Docker for now
+      
+      # Email settings (optional, for password reset)
+      - key: SMTP_HOST
+        value: ""
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        value: ""
+      - key: SMTP_PASSWORD
+        value: ""
+      - key: SMTP_USE_TLS
+        value: "false"
+      - key: EMAIL_FROM
+        value: "autostack@example.com"
+    
+    # Health check
+    healthCheckPath: /health
+    autoDeploy: true
+    
+    # Resource limits (free tier)
+    instanceSize: free
+    numInstances: 1
