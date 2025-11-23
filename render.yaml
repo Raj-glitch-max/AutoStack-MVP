@@ -15,7 +15,7 @@ services:
       pip install -r requirements.txt
       # Skip migrations for now to get the app running
       # alembic upgrade head
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    startCommand: cd autostack-backend && uvicorn autostack_backend.app.main:app --host 0.0.0.0 --port 10000
     healthCheckPath: /health
     autoDeploy: true
     envVars:
