@@ -1,47 +1,14 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:15
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-autostack}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 5s
-      retries: 5
-      timeout: 5s
-    volumes:
-      - autostack-data:/var/lib/postgresql/data
-
   backend:
     build:
       context: ./autostack-backend
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     env_file:
       - ./autostack-backend/.env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/autostack}
-      SECRET_KEY: ${SECRET_KEY:-change-me}
-      JWT_ACCESS_TOKEN_EXPIRES_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRES_MINUTES:-30}
-      JWT_REFRESH_TOKEN_EXPIRES_DAYS: ${JWT_REFRESH_TOKEN_EXPIRES_DAYS:-7}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      FRONTEND_ADDITIONAL_ORIGINS: ${FRONTEND_ADDITIONAL_ORIGINS:-http://localhost:5173}
-      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
-      AUTOSTACK_DEPLOY_DIR: /app/deployments
-      DOCKER_ENABLE: "true"
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USERNAME: ${SMTP_USERNAME:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
-      EMAIL_FROM: ${EMAIL_FROM:-autostack@example.com}
     volumes:
+      - ./autostack-backend:/app
       - ./autostack-backend/deployments:/app/deployments
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -52,7 +19,8 @@ services:
     working_dir: /app
     volumes:
       - ./autostack-frontend:/app
-    command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0 --port 3000"]
+      - /app/node_modules
+    command: [ "sh", "-c", "npm install && npm run dev -- --host 0.0.0.0 --port 3000" ]
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
     ports:
@@ -70,6 +38,4 @@ services:
       - jenkins-data:/var/jenkins_home
 
 volumes:
-  autostack-data:
   jenkins-data:
-
