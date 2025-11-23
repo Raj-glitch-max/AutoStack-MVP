@@ -75,7 +75,7 @@ services:
       - key: EMAIL_FROM
         value: "autostack@example.com"
 
-  - type: static
+  - type: pstatic
     name: autostack-frontend
     plan: free
     buildCommand: |
