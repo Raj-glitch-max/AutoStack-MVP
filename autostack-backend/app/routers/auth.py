@@ -30,7 +30,7 @@ from ..schemas import (
     SignupRequest,
     UserInfo,
 )
-from ..security import ALGORITHM, create_access_token, get_current_user, hash_password, verify_password
+from ..security import ALGORITHM, create_access_token, decode_token, get_current_user, hash_password, verify_password
 from ..services.email import send_email
 
 
@@ -160,6 +160,121 @@ def _validate_oauth_state(state: str | None, expected_provider: str) -> dict | N
     if payload.get("provider") != expected_provider:
         return None
     return payload
+
+
+def _github_authorize_url(state: str) -> str:
+    params = {
+        "client_id": settings.github_client_id,
+        "redirect_uri": str(settings.github_callback_url),
+        "scope": "read:user user:email repo",
+        "state": state,
+        "allow_signup": "true",
+    }
+    return f"https://github.com/login/oauth/authorize?{urlencode(params)}"
+
+
+@router.post("/signup", response_model=AuthResponse)
+async def signup(data: SignupRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+    _validate_password_strength(data.password)
+
+    # Check if user exists
+    result = await db.execute(select(User).where(User.email == data.email))
+    if result.scalar_one_or_none():
+        raise ApiError("EMAIL_EXISTS", "Email already registered", 400)
+
+    # Create user
+    user = User(
+        name=data.name,
+        email=data.email,
+        password_hash=hash_password(data.password),
+    )
+    db.add(user)
+    await db.flush()
+
+    # Create session
+    access_token = create_access_token(user)
+    refresh_token = await _create_session(db, user)
+    await db.commit()
+
+    return AuthResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.jwt_access_token_expires_minutes * 60,
+        user=_user_to_info(user),
+    )
+
+
+@router.post("/login", response_model=AuthResponse)
+async def login(
+    data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)
+) -> AuthResponse:
+    _check_login_rate_limit(request, data.email)
+
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
+        _register_login_failure(request, data.email)
+        raise ApiError("INVALID_CREDENTIALS", "Invalid email or password", 401)
+
+    _clear_login_failures(request, data.email)
+
+    access_token = create_access_token(user)
+    refresh_token = await _create_session(db, user)
+    await db.commit()
+
+    return AuthResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.jwt_access_token_expires_minutes * 60,
+        user=_user_to_info(user),
+    )
+
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh_token(data: RefreshRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+    result = await db.execute(
+        select(Session).where(Session.token == data.refresh_token).join(User)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise ApiError("INVALID_TOKEN", "Invalid refresh token", 401)
+
+    if session.expires_at < datetime.utcnow():
+        await db.delete(session)
+        await db.commit()
+        raise ApiError("TOKEN_EXPIRED", "Refresh token expired", 401)
+
+    # Rotate refresh token
+    await db.delete(session)
+    
+    user = session.user
+    new_access_token = create_access_token(user)
+    new_refresh_token = await _create_session(db, user)
+    await db.commit()
+
+    return AuthResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        expires_in=settings.jwt_access_token_expires_minutes * 60,
+        user=_user_to_info(user),
+    )
+
+
+@router.get("/session", response_model=SessionResponse)
+async def get_session(user: User = Depends(get_current_user)) -> SessionResponse:
+    return SessionResponse(user=_user_to_info(user))
+
+
+@router.post("/logout")
+async def logout(data: LogoutRequest, db: AsyncSession = Depends(get_db)) -> MessageResponse:
+    result = await db.execute(select(Session).where(Session.token == data.refresh_token))
+    session = result.scalar_one_or_none()
+    if session:
+        await db.delete(session)
+        await db.commit()
+    return MessageResponse(message="Logged out successfully")
 
 
 @oauth_router.get("/auth/github")
