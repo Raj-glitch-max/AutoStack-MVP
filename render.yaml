@@ -43,7 +43,7 @@ services:
       - key: GITHUB_CLIENT_SECRET
         sync: false
       - key: GITHUB_CALLBACK_URL
-        value: "https://${SERVICE_NAME}.onrender.com/auth/github/callback"
+        value: "https://autostack-mvp.onrender.com/auth/github/callback"
       - key: GITHUB_WEBHOOK_SECRET
         generateValue: true
 
@@ -53,7 +53,7 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: GOOGLE_CALLBACK_URL
-        value: "https://${SERVICE_NAME}.onrender.com/auth/google/callback"
+        value: "https://autostack-mvp.onrender.com/auth/google/callback"
 
       # Deployment settings
       - key: AUTOSTACK_DEPLOY_DIR
