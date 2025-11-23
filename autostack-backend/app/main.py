@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -66,6 +67,9 @@ async def on_startup() -> None:
         from .services.container_log_streamer import start_log_streamer
         start_log_streamer()
 
+
+# Ensure artifacts directory exists at import time for StaticFiles
+os.makedirs(settings.autostack_deploy_dir, exist_ok=True)
 
 # Serve build artifacts
 app.mount(
